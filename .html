@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quiz + To-Do App</title>
+<style>
+  /* ── Reset & Theme ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f4f6fb;
+    --surface:   #ffffff;
+    --surface2:  #f0f2f8;
+    --border:    #e2e6f0;
+    --text:      #1a1d27;
+    --text2:     #5a6180;
+    --accent:    #6c63ff;
+    --accent2:   #a99cf8;
+    --success:   #22c55e;
+    --danger:    #ef4444;
+    --warn:      #f59e0b;
+    --radius:    14px;
+    --shadow:    0 2px 16px rgba(108,99,255,.10);
+    --transition: .22s cubic-bezier(.4,0,.2,1);
+  }
+  [data-theme="dark"] {
+    --bg:       #111318;
+    --surface:  #1c1f2b;
+    --surface2: #252836;
+    --border:   #2e3147;
+    --text:     #e8eaf6;
+    --text2:    #8b92b8;
+    --shadow:   0 2px 16px rgba(0,0,0,.4);
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background var(--transition), color var(--transition);
+  }
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: var(--shadow);
+  }
+  .logo { font-size: 1.25rem; font-weight: 700; color: var(--accent); letter-spacing: -.5px; }
+  .logo span { color: var(--text); }
+
+  .tabs {
+    display: flex; gap: 6px;
+    background: var(--surface2);
+    padding: 4px; border-radius: 10px;
+  }
+  .tab-btn {
+    border: none; background: transparent; cursor: pointer;
+    padding: 7px 20px; border-radius: 7px;
+    font-size: .875rem; font-weight: 600; color: var(--text2);
+    transition: all var(--transition);
+  }
+  .tab-btn.active {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 2px 8px rgba(108,99,255,.35);
+  }
+  .tab-btn:hover:not(.active) { background: var(--border); color: var(--text); }
+
+  #dark-toggle {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 50%; width: 38px; height: 38px;
+    cursor: pointer; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform var(--transition), background var(--transition);
+  }
+  #dark-toggle:hover { transform: rotate(20deg); background: var(--border); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .container { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+
+  /* ── Card ──────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    box-shadow: var(--shadow);
+    transition: background var(--transition);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     QUIZ SECTION
+  ══════════════════════════════════════════════════════════════ */
+  #quiz-start { text-align: center; }
+  #quiz-start h2 { font-size: 1.75rem; margin-bottom: 10px; }
+  #quiz-start p  { color: var(--text2); margin-bottom: 28px; line-height: 1.6; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 26px; border-radius: 9px;
+    border: none; cursor: pointer; font-size: .925rem; font-weight: 600;
+    transition: all var(--transition);
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(108,99,255,.4); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0) scale(.98); }
+
+  /* timer row */
+  .timer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .q-counter { font-size: .85rem; color: var(--text2); font-weight: 500; }
+  .timer-badge {
+    font-size: .875rem; font-weight: 700; color: var(--accent);
+    background: rgba(108,99,255,.1); padding: 4px 12px; border-radius: 20px;
+    min-width: 56px; text-align: center;
+    transition: color .2s, background .2s;
+  }
+  .timer-badge.urgent { color: var(--danger); background: rgba(239,68,68,.12); }
+
+  /* progress bar */
+  .progress-bar-wrap {
+    height: 7px; background: var(--surface2); border-radius: 99px;
+    margin-bottom: 24px; overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .25s linear;
+  }
+  .progress-bar.urgent { background: linear-gradient(90deg, var(--danger), #f87171); }
+
+  /* question */
+  .q-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 22px; line-height: 1.5; }
+
+  /* options */
+  .options { display: flex; flex-direction: column; gap: 11px; margin-bottom: 26px; }
+  .option-btn {
+    text-align: left; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 13px 16px; cursor: pointer;
+    font-size: .95rem; font-weight: 500; color: var(--text);
+    transition: all var(--transition); position: relative; overflow: hidden;
+  }
+  .option-btn::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--accent); opacity: 0; transition: opacity var(--transition);
+  }
+  .option-btn:hover:not(:disabled)::before { opacity: .07; }
+  .option-btn:hover:not(:disabled) { border-color: var(--accent); transform: translateX(3px); }
+  .option-btn:disabled { cursor: default; }
+  .option-btn.correct { border-color: var(--success); background: rgba(34,197,94,.1); color: var(--success); }
+  .option-btn.wrong   { border-color: var(--danger);  background: rgba(239,68,68,.1);  color: var(--danger); }
+
+  .quiz-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* score screen */
+  #quiz-result { text-align: center; }
+  .score-ring {
+    width: 130px; height: 130px;
+    border-radius: 50%; margin: 0 auto 22px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: conic-gradient(var(--accent) var(--pct,0%), var(--surface2) 0%);
+    position: relative;
+  }
+  .score-ring::after {
+    content: ''; position: absolute; inset: 14px;
+    border-radius: 50%; background: var(--surface);
+  }
+  .score-num { font-size: 1.6rem; font-weight: 800; z-index: 1; color: var(--accent); }
+  .score-label { font-size: .8rem; color: var(--text2); z-index: 1; }
+  #quiz-result h3 { font-size: 1.4rem; margin-bottom: 8px; }
+  #quiz-result p  { color: var(--text2); margin-bottom: 24px; }
+
+  .answer-review { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px; text-align: left; }
+  .review-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: .9rem; line-height: 1.5; }
+  .review-item:last-child { border-bottom: none; }
+  .review-q { font-weight: 600; margin-bottom: 4px; }
+  .review-correct { color: var(--success); }
+  .review-wrong   { color: var(--danger); }
+
+  /* ══════════════════════════════════════════════════════════════
+     TO-DO SECTION
+  ══════════════════════════════════════════════════════════════ */
+  .todo-header { margin-bottom: 22px; }
+  .todo-header h2 { font-size: 1.5rem; margin-bottom: 4px; }
+  .todo-header p  { font-size: .875rem; color: var(--text2); }
+
+  .todo-add {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+  .todo-input {
+    flex: 1; padding: 11px 15px; border-radius: 9px;
+    border: 1.5px solid var(--border); background: var(--surface2);
+    color: var(--text); font-size: .95rem;
+    transition: border-color var(--transition), background var(--transition);
+    outline: none;
+  }
+  .todo-input:focus { border-color: var(--accent); background: var(--surface); }
+  .todo-input::placeholder { color: var(--text2); }
+
+  .filters {
+    display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 5px 14px; border-radius: 7px; border: 1.5px solid var(--border);
+    background: transparent; cursor: pointer; font-size: .82rem; font-weight: 600;
+    color: var(--text2); transition: all var(--transition);
+  }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+  .todo-list { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .todo-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 15px; border-radius: 10px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    transition: all var(--transition);
+    animation: slideIn .25s ease;
+  }
+  .todo-item:hover { border-color: var(--accent2); box-shadow: 0 2px 10px rgba(108,99,255,.10); }
+  .todo-item.done { opacity: .6; }
+  .todo-item.done .todo-text { text-decoration: line-through; color: var(--text2); }
+
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(-8px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes fadeOut {
+    to { opacity:0; transform: scale(.95); }
+  }
+  .todo-item.removing { animation: fadeOut .2s ease forwards; }
+
+  .todo-check {
+    width: 22px; height: 22px; min-width: 22px;
+    border-radius: 50%; border: 2px solid var(--border);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition); background: var(--surface);
+  }
+  .todo-check.checked { background: var(--success); border-color: var(--success); }
+  .todo-check.checked::after { content: '✓'; color: #fff; font-size: .75rem; font-weight: 700; }
+  .todo-text { flex: 1; font-size: .95rem; font-weight: 500; word-break: break-word; }
+  .todo-delete {
+    background: none; border: none; cursor: pointer; color: var(--text2);
+    font-size: 1.1rem; padding: 2px 4px; border-radius: 5px;
+    transition: color var(--transition), background var(--transition);
+    line-height: 1;
+  }
+  .todo-delete:hover { color: var(--danger); background: rgba(239,68,68,.1); }
+
+  .todo-empty { text-align: center; padding: 36px 0; color: var(--text2); font-size: .95rem; }
+  .todo-empty .icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
+
+  .todo-stats {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: .82rem; color: var(--text2);
+  }
+  .clear-btn {
+    background: none; border: none; cursor: pointer; color: var(--danger);
+    font-size: .82rem; font-weight: 600; padding: 3px 7px; border-radius: 5px;
+    transition: background var(--transition);
+  }
+  .clear-btn:hover { background: rgba(239,68,68,.1); }
+
+  /* ── Responsive ────────────────────────────────────────────── */
+  @media (max-width: 560px) {
+    .app-header { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
+    .tabs { order: 3; width: 100%; justify-content: center; }
+    .card { padding: 20px 16px; }
+    .quiz-actions { flex-direction: column; }
+    .quiz-actions .btn { width: 100%; justify-content: center; }
+    .todo-add { flex-direction: column; }
+    .todo-add .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="app-header">
+  <div class="logo">Brain<span>Boost</span></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="quiz" role="tab" aria-selected="true">🧠 Quiz</button>
+    <button class="tab-btn" data-tab="todo" role="tab" aria-selected="false">✅ To-Do</button>
+  </nav>
+
+  <button id="dark-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+</header>
+
+<!-- ═══════════════ QUIZ TAB ═══════════════ -->
+<div id="tab-quiz" class="tab-content active">
+  <div class="container">
+    <div class="card">
+
+      <!-- Start Screen -->
+      <div id="quiz-start">
+        <div style="font-size:3rem;margin-bottom:12px">🎯</div>
+        <h2>General Knowledge Quiz</h2>
+        <p>10 questions · 15 seconds each · Instant feedback<br>Test your knowledge across science, history &amp; more!</p>
+        <button class="btn btn-primary" id="start-btn">▶ Start Quiz</button>
+      </div>
+
+      <!-- Question Screen -->
+      <div id="quiz-question" style="display:none">
+        <div class="timer-row">
+          <span class="q-counter" id="q-counter">Question 1 / 10</span>
+          <span class="timer-badge" id="timer-badge">15s</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="timer-bar" style="width:100%"></div>
+        </div>
+        <div class="q-text" id="q-text"></div>
+        <div class="options" id="options"></div>
+        <div class="quiz-actions">
+          <button class="btn btn-secondary" id="next-btn" disabled>Next →</button>
+        </div>
+      </div>
+
+      <!-- Result Screen -->
+      <div id="quiz-result" style="display:none">
+        <div class="score-ring" id="score-ring">
+          <span class="score-num" id="score-num"></span>
+          <span class="score-label">score</span>
+        </div>
+        <h3 id="result-title"></h3>
+        <p id="result-msg"></p>
+        <button class="btn btn-primary" id="restart-btn">🔄 Restart Quiz</button>
+        <div class="answer-review" id="answer-review"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TODO TAB ═══════════════ -->
+<div id="tab-todo" class="tab-content">
+  <div class="container">
+    <div class="card">
+
+      <div class="todo-header">
+        <h2>📋 My Tasks</h2>
+        <p>Stay organised — your tasks are saved automatically.</p>
+      </div>
+
+      <div class="todo-add">
+        <input class="todo-input" id="todo-input" type="text" placeholder="Add a new task…" maxlength="120" aria-label="New task" />
+        <button class="btn btn-primary" id="todo-add-btn">+ Add</button>
+      </div>
+
+      <div class="filters" role="group" aria-label="Filter tasks">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="active">Active</button>
+        <button class="filter-btn" data-filter="done">Completed</button>
+      </div>
+
+      <ul class="todo-list" id="todo-list" aria-live="polite"></ul>
+
+      <div class="todo-empty" id="todo-empty" style="display:none">
+        <span class="icon">🌿</span>
+        Nothing here — add a task above!
+      </div>
+
+      <div class="todo-stats" id="todo-stats">
+        <span id="stats-text">0 tasks</span>
+        <button class="clear-btn" id="clear-done-btn">Clear completed</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ AUDIO ═══════════════ -->
+<audio id="snd-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" preload="auto"></audio>
+<audio id="snd-wrong"   src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" preload="auto"></audio>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   QUIZ DATA — 10 questions
+──────────────────────────────────────────────────────────────── */
+const QUESTIONS = [
+  {
+    q: "Which planet in our solar system has the most moons?",
+    opts: ["Jupiter", "Saturn", "Uranus", "Neptune"],
+    ans: 1,
+    exp: "Saturn has 146 confirmed moons as of 2023."
+  },
+  {
+    q: "What is the chemical symbol for gold?",
+    opts: ["Go", "Gd", "Au", "Ag"],
+    ans: 2,
+    exp: "Au comes from the Latin word 'Aurum'."
+  },
+  {
+    q: "Who painted the Mona Lisa?",
+    opts: ["Michelangelo", "Raphael", "Leonardo da Vinci", "Donatello"],
+    ans: 2,
+    exp: "Leonardo da Vinci painted it between 1503–1519."
+  },
+  {
+    q: "In which year did World War II end?",
+    opts: ["1943", "1944", "1945", "1946"],
+    ans: 2,
+    exp: "WWII ended in 1945 with Germany's surrender in May and Japan's in September."
+  },
+  {
+    q: "What is the speed of light (approx.) in a vacuum?",
+    opts: ["3 × 10⁵ km/s", "3 × 10⁶ km/s", "3 × 10⁴ km/s", "3 × 10⁷ km/s"],
+    ans: 0,
+    exp: "Light travels at approximately 299,792 km/s ≈ 3 × 10⁵ km/s."
+  },
+  {
+    q: "Which country is home to the Great Barrier Reef?",
+    opts: ["Brazil", "Indonesia", "Australia", "Philippines"],
+    ans: 2,
+    exp: "The Great Barrier Reef is off the coast of Queensland, Australia."
+  },
+  {
+    q: "What is the largest organ in the human body?",
+    opts: ["Liver", "Brain", "Skin", "Lungs"],
+    ans: 2,
+    exp: "Skin is the largest organ, covering about 2 sq. metres in adults."
+  },
+  {
+    q: "Which programming language was created by Guido van Rossum?",
+    opts: ["Ruby", "Python", "Perl", "Go"],
+    ans: 1,
+    exp: "Python was created by Guido van Rossum and first released in 1991."
+  },
+  {
+    q: "How many bones are in an adult human body?",
+    opts: ["196", "206", "216", "226"],
+    ans: 1,
+    exp: "An adult human body has 206 bones."
+  },
+  {
+    q: "Which element has the atomic number 1?",
+    opts: ["Helium", "Oxygen", "Carbon", "Hydrogen"],
+    ans: 3,
+    exp: "Hydrogen is the first element on the periodic table with atomic number 1."
+  }
+];
+
+const TIME_PER_Q = 15; // seconds
+
+/* ── State ── */
+let qIndex = 0;
+let score  = 0;
+let timer  = null;
+let timeLeft = TIME_PER_Q;
+let answered = false;
+let userAnswers = [];
+
+/* ── DOM refs (quiz) ── */
+const startScreen  = document.getElementById('quiz-start');
+const questionScreen = document.getElementById('quiz-question');
+const resultScreen = document.getElementById('quiz-result');
+const qCounter     = document.getElementById('q-counter');
+const timerBadge   = document.getElementById('timer-badge');
+const timerBar     = document.getElementById('timer-bar');
+const qText        = document.getElementById('q-text');
+const optionsEl    = document.getElementById('options');
+const nextBtn      = document.getElementById('next-btn');
+const restartBtn   = document.getElementById('restart-btn');
+const startBtn     = document.getElementById('start-btn');
+const scoreNum     = document.getElementById('score-num');
+const scoreRing    = document.getElementById('score-ring');
+const resultTitle  = document.getElementById('result-title');
+const resultMsg    = document.getElementById('result-msg');
+const answerReview = document.getElementById('answer-review');
+
+/* ── Sound helpers ── */
+function beep(freq = 440, dur = 0.15, vol = 0.25, type = 'sine') {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+const playCorrect = () => beep(660, .18, .25, 'sine');
+const playWrong   = () => beep(180, .25, .25, 'sawtooth');
+
+/* ── Start / Restart ── */
+function startQuiz() {
+  qIndex = 0; score = 0; userAnswers = [];
+  startScreen.style.display  = 'none';
+  resultScreen.style.display = 'none';
+  questionScreen.style.display = 'block';
+  showQuestion();
+}
+
+startBtn.addEventListener('click', startQuiz);
+restartBtn.addEventListener('click', startQuiz);
+
+/* ── Show Question ── */
+function showQuestion() {
+  const q = QUESTIONS[qIndex];
+  answered = false;
+  timeLeft = TIME_PER_Q;
+
+  qCounter.textContent = `Question ${qIndex + 1} / ${QUESTIONS.length}`;
+  qText.textContent    = q.q;
+  nextBtn.disabled     = true;
+  timerBadge.classList.remove('urgent');
+  timerBar.classList.remove('urgent');
+
+  // Build options
+  optionsEl.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => selectAnswer(i));
+    optionsEl.appendChild(btn);
+  });
+
+  startTimer();
+}
+
+/* ── Timer ── */
+function startTimer() {
+  clearInterval(timer);
+  updateTimerUI();
+  timer = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      if (!answered) { revealAnswer(-1); } // time-out = no answer
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const pct = (timeLeft / TIME_PER_Q) * 100;
+  timerBadge.textContent = `${timeLeft}s`;
+  timerBar.style.width   = pct + '%';
+  const urgent = timeLeft <= 5;
+  timerBadge.classList.toggle('urgent', urgent);
+  timerBar.classList.toggle('urgent', urgent);
+}
+
+/* ── Select Answer ── */
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timer);
+  revealAnswer(idx);
+}
+
+function revealAnswer(selected) {
+  const correct = QUESTIONS[qIndex].ans;
+  const btns    = optionsEl.querySelectorAll('.option-btn');
+
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === correct) b.classList.add('correct');
+    if (i === selected && i !== correct) b.classList.add('wrong');
+  });
+
+  if (selected === correct) {
+    score++;
+    playCorrect();
+  } else if (selected !== -1) {
+    playWrong();
+  }
+
+  userAnswers.push({ q: QUESTIONS[qIndex], selected });
+  nextBtn.disabled = false;
+
+  // Auto-advance after 1.8 s
+  setTimeout(() => { if (nextBtn && !nextBtn.disabled) nextBtn.click(); }, 1800);
+}
+
+/* ── Next ── */
+nextBtn.addEventListener('click', () => {
+  clearInterval(timer);
+  qIndex++;
+  if (qIndex < QUESTIONS.length) {
+    showQuestion();
+  } else {
+    showResult();
+  }
+});
+
+/* ── Result ── */
+function showResult() {
+  questionScreen.style.display = 'none';
+  resultScreen.style.display   = 'block';
+
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  scoreNum.textContent = `${score}/${QUESTIONS.length}`;
+  scoreRing.style.setProperty('--pct', pct + '%');
+
+  const msgs = [
+    [80, "🏆 Outstanding!", "You're a trivia master. Excellent work!"],
+    [60, "🎉 Well Done!",   "Solid performance — keep it up!"],
+    [40, "😊 Not Bad!",     "Good effort — review and try again!"],
+    [ 0, "💪 Keep Going!",  "Every expert was once a beginner!"]
+  ];
+  const [, title, msg] = msgs.find(([threshold]) => pct >= threshold);
+  resultTitle.textContent = title;
+  resultMsg.textContent   = msg;
+
+  // Answer review
+  answerReview.innerHTML = '<h4 style="margin-bottom:12px;font-size:.95rem;color:var(--text2)">Answer Review</h4>';
+  userAnswers.forEach(({ q, selected }, i) => {
+    const correct = q.ans;
+    const isRight = selected === correct;
+    const div = document.createElement('div');
+    div.className = 'review-item';
+    div.innerHTML = `
+      <div class="review-q">${i+1}. ${q.q}</div>
+      <div class="${isRight ? 'review-correct' : 'review-wrong'}">
+        ${isRight ? '✓' : '✗'} Your answer: ${selected === -1 ? '⏱ Time expired' : q.opts[selected]}
+      </div>
+      ${!isRight ? `<div class="review-correct">✓ Correct: ${q.opts[correct]}</div>` : ''}
+      <div style="font-size:.82rem;color:var(--text2);margin-top:3px">${q.exp}</div>
+    `;
+    answerReview.appendChild(div);
+  });
+}
+
+
+/* ────────────────────────────────────────────────────────────────
+   TO-DO LIST
+──────────────────────────────────────────────────────────────── */
+let todos = JSON.parse(localStorage.getItem('brainboost_todos') || '[]');
+let currentFilter = 'all';
+
+const todoInput    = document.getElementById('todo-input');
+const todoAddBtn   = document.getElementById('todo-add-btn');
+const todoList     = document.getElementById('todo-list');
+const todoEmpty    = document.getElementById('todo-empty');
+const statsText    = document.getElementById('stats-text');
+const clearDoneBtn = document.getElementById('clear-done-btn');
+
+function saveTodos() { localStorage.setItem('brainboost_todos', JSON.stringify(todos)); }
+
+function addTodo() {
+  const text = todoInput.value.trim();
+  if (!text) return;
+  todos.unshift({ id: Date.now(), text, done: false });
+  saveTodos();
+  todoInput.value = '';
+  renderTodos();
+}
+
+function toggleTodo(id) {
+  const todo = todos.find(t => t.id === id);
+  if (todo) { todo.done = !todo.done; saveTodos(); renderTodos(); }
+}
+
+function deleteTodo(id) {
+  const li = document.querySelector(`[data-id="${id}"]`);
+  if (li) {
+    li.classList.add('removing');
+    li.addEventListener('animationend', () => {
+      todos = todos.filter(t => t.id !== id);
+      saveTodos(); renderTodos();
+    }, { once: true });
+  }
+}
+
+function renderTodos() {
+  const filtered = todos.filter(t => {
+    if (currentFilter === 'active') return !t.done;
+    if (currentFilter === 'done')   return  t.done;
+    return true;
+  });
+
+  todoList.innerHTML = '';
+  if (filtered.length === 0) {
+    todoEmpty.style.display = 'block';
+  } else {
+    todoEmpty.style.display = 'none';
+    filtered.forEach(todo => {
+      const li = document.createElement('li');
+      li.className = 'todo-item' + (todo.done ? ' done' : '');
+      li.setAttribute('data-id', todo.id);
+      li.innerHTML = `
+        <button class="todo-check ${todo.done ? 'checked' : ''}" aria-label="Toggle complete" onclick="toggleTodo(${todo.id})"></button>
+        <span class="todo-text">${escHtml(todo.text)}</span>
+        <button class="todo-delete" aria-label="Delete task" onclick="deleteTodo(${todo.id})">✕</button>
+      `;
+      todoList.appendChild(li);
+    });
+  }
+
+  // Stats
+  const total     = todos.length;
+  const doneCount = todos.filter(t => t.done).length;
+  statsText.textContent = `${total - doneCount} remaining · ${doneCount} done`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+todoAddBtn.addEventListener('click', addTodo);
+todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderTodos();
+  });
+});
+
+clearDoneBtn.addEventListener('click', () => {
+  todos = todos.filter(t => !t.done);
+  saveTodos(); renderTodos();
+});
+
+renderTodos(); // initial render
+
+
+/* ────────────────────────────────────────────────────────────────
+   TABS
+──────────────────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active'); b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
+    document.getElementById('tab-' + tab).classList.add('active');
+  });
+});
+
+
+/* ────────────────────────────────────────────────────────────────
+   DARK MODE
+──────────────────────────────────────────────────────────────── */
+const root       = document.documentElement;
+const darkToggle = document.getElementById('dark-toggle');
+const saved = localStorage.getItem('brainboost_theme');
+if (saved) { root.setAttribute('data-theme', saved); darkToggle.textContent = saved === 'dark' ? '☀️' : '🌙'; }
+
+darkToggle.addEventListener('click', () => {
+  const isDark = root.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  darkToggle.textContent = next === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('brainboost_theme', next);
+});
+</script>
+</body>
+</html>
